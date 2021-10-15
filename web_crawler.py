@@ -1,28 +1,29 @@
 import urllib.request
-import re
-import threading
 import sys
-from multiprocessing import Queue
 from threading import Lock
 
-tally = 1
-iterate = 0
-Anchor = False
-mutex = Lock()
+recordd = 1
+repeatt = 0
+flagg = False
+penguin = Lock()
 
+#
+import re
+import threading
+from multiprocessing import Queue
 
-# The function that is there for the crawling purpose
-def findkeywordlvl(strwebsiteinp, strmatch, queueget):
-    global tally  # this variable is kept to kee record of how many positive results the crawler has sniffed so far
-    global Anchor  # This variable is ketp as a flag that would raise the interrupt signal to terminate all the threads at once as soon as the total number of positive results is reached
-    if Anchor == False:
-        mutex.acquire()  # Mutex locking is acquired before the critical section
+# Function will parse the weblinks and give level of keyword
+def getkeywordlevel(strwebsiteinp, strmatch, queueget):
+    global recordd  # this variable will maintain the record of the +ve results the crawler successfully found so far
+    global flagg  # This variable would raise the flag signal to stop|terminate all the threads at once as soon as the desired number of positive results is reached
+    if flagg == False:
+        penguin.acquire()  # penguin locking is acquired before the critical section
         if strmatch.startswith("src="):
             # The function is saving those strings that start with src or hrefs as in to save any links that are in the webpage
             strmatch = strmatch[5 : len(strmatch)]
         elif strmatch.startswith("href="):
             strmatch = strmatch[6 : len(strmatch)]
-        mutex.release()  # Mutex locking is acquired before the critical section
+        penguin.release()  # penguin locking is acquired before the critical section
 
         # This check exists to make sure that the link sniffed out isn't of any picture of a gif
         if (
@@ -31,7 +32,7 @@ def findkeywordlvl(strwebsiteinp, strmatch, queueget):
             or (strmatch.endswith(".jpg"))
             or (strmatch.endswith(".gif"))
         ):
-            mutex.acquire()  # Mutex locking is acquired before the critical section
+            penguin.acquire()  # penguin locking is acquired before the critical section
             # this exists to check if the link sniffed is an independant url
             #  of its own or whether its a subsection of the current website it is sniffing
             if strmatch.startswith("//"):
@@ -41,7 +42,7 @@ def findkeywordlvl(strwebsiteinp, strmatch, queueget):
                 strwebsite2 = strwebsiteinp + strmatch
             else:
                 strwebsite2 = strmatch
-            mutex.release()
+            penguin.release()
             if "\\" not in strwebsite2:
                 try:
                     # print(strwebsite2)
@@ -56,10 +57,10 @@ def findkeywordlvl(strwebsiteinp, strmatch, queueget):
                         str(strcontent),
                     )
                     if match2:
-                        if tally < iterate:
-                            mutex.acquire()
-                            tally += 1
-                            mutex.release()
+                        if recordd < repeatt:
+                            penguin.acquire()
+                            recordd += 1
+                            penguin.release()
                             strPrint = (
                                 strwebsite2
                                 + " has "
@@ -72,7 +73,7 @@ def findkeywordlvl(strwebsiteinp, strmatch, queueget):
                             strFile.write(strPrint)
                         else:
 
-                            Anchor = True
+                            flagg = True
                     else:
                         print("No matches for:", strwebsite2)
                     strFile3.write(strwebsite2 + "\n")
@@ -87,18 +88,18 @@ def findkeywordlvl(strwebsiteinp, strmatch, queueget):
         sys.exit()
 
 
-def linkOptimizer(webString):
+def Optimise_Link(String_Website):
 
-    if webString.find("https://") != -1:  # if https in the string
-        webString = webString.replace("https://", "http://")
-    if webString.find("http://") == -1:  # if http not in string
-        if webString.find("www") != -1:  # if www in string
-            webString = webString.replace("www.", "http://")
+    if String_Website.find("https://") != -1:  # if https in the string
+        String_Website = String_Website.replace("https://", "http://")
+    if String_Website.find("http://") == -1:  # if http not in string
+        if String_Website.find("www") != -1:  # if www in string
+            String_Website = String_Website.replace("www.", "http://")
         else:
-            webString = "http://" + webString
-    elif webString.find("www") != -1:  # if www in string
-        webString = webString.replace("www.", "")
-    return webString
+            String_Website = "http://" + String_Website
+    elif String_Website.find("www") != -1:  # if www in string
+        String_Website = String_Website.replace("www.", "")
+    return String_Website
 
 
 # standard input prompting user to first enter the url then the keyword and
@@ -113,7 +114,7 @@ intLevel = int(
     )
 )
 if intLevel == 3:
-    iterate = int(input("Enter The Number Of Positive Results you wish to acquire:\n"))
+    repeatt = int(input("Enter The Number Of Positive Results you wish to acquire:\n"))
 # creation of 2 files to log for the positive results and errors
 filename = strWebsite[7 : len(strWebsite)] + " positives.log"
 filename2 = strWebsite[7 : len(strWebsite)] + " errors.log"
@@ -126,7 +127,7 @@ strFile3 = open(filename3, "w")
 # the program only accepts standard input prompting user to
 #  first enter the url then the keyword and then choose between the 3 levels
 # of searching he wishes the web crawler to perform the search operation from
-strWebsite = linkOptimizer(strWebsite)
+strWebsite = Optimise_Link(strWebsite)
 
 # url is opened using the urllib library
 strContent = urllib.request.urlopen(strWebsite).read()
@@ -175,7 +176,7 @@ elif intLevel in range(2, 4):
     i = 0
     while i < len(match):
         if threading.active_count() < 10:
-            t = threading.Thread(target=findkeywordlvl, args=(strWebsite, match[i], q))
+            t = threading.Thread(target=getkeywordlevel, args=(strWebsite, match[i], q))
             t.start()
             threads.append(t)
             i += 1
@@ -194,7 +195,7 @@ elif intLevel in range(2, 4):
                 if threading.active_count() < 10:
                     threads.append(
                         threading.Thread(
-                            target=findkeywordlvl,
+                            target=getkeywordlevel,
                             args=(results[i][0], results[i][1][j], q),
                         )
                     )
